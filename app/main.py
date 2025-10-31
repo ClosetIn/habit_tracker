@@ -3,9 +3,13 @@ from typing import List
 from datetime import date
 from app.schemas import HabitCreate, HabitResponse, HabitUpdate
 
-# Временное хранилище в памяти (заменим на БД позже)
-fake_habits_db = []
-next_id = 1
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException
+from app.database import get_db, engine
+from app import models, schemas
+
+# Создаем таблицы при запуске
+models.Base.metadata.create_all(bind=engine)
 
 # Создаем экземпляр FastAPI приложения
 app = FastAPI(
@@ -14,72 +18,58 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Простейший эндпоинт для проверки работы @app.get("/")
+# Базовые эндпоинты
 @app.get("/")
 def read_root():
     return {"message": "Habit Tracker API is running!"}
 
-# Эндпоинт для проверки здоровья приложения
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": "2024-01-01T10:00:00Z"}
 
-# Эндпоинт для создания привычки
-@app.post("/habits/", response_model=HabitResponse)
-def create_habit(habit: HabitCreate):
-    global next_id
-    new_habit = {
-        "id": next_id,
-        "name": habit.name,
-        "description": habit.description,
-        "frequency": habit.frequency,
-        "created_at": date.today()
-    }
-    fake_habits_db.append(new_habit)
-    next_id += 1
-    return new_habit
+# CRUD эндпоинты для привычек
+@app.post("/habits/", response_model=schemas.HabitResponse)
+def create_habit(habit: schemas.HabitCreate, db: Session = Depends(get_db)):
+    db_habit = models.Habit(
+        name=habit.name, 
+        description=habit.description, 
+        frequency=habit.frequency
+    )
+    db.add(db_habit)
+    db.commit()
+    db.refresh(db_habit)
+    return db_habit
 
-# Эндпоинт для получения всех привычек
-@app.get("/habits/", response_model=List[HabitResponse])
-def get_habits():
-    return fake_habits_db
+@app.get("/habits/", response_model=List[schemas.HabitResponse])
+def get_habits(db:Session = Depends(get_db)):
+    habits = db.query(models.Habit).all()
+    return habits
 
-# Эндпоинт для получения одной привычки по ID
-@app.get("/habits/{habit_id}", response_model=HabitResponse)
-def get_habit(habit_id: int):
-    for habit in fake_habits_db:
-        if habit["id"] == habit_id:
-            return habit
-    raise HTTPException(status_code=404, detail="Habit not found")
+@app.get("/habits/{habit_id}", response_model=schemas.HabitResponse)
+def get_habit(habit_id: int, db: Session = Depends(get_db)):
+    habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
+    if not habit: 
+        raise HTTPException(status_code=404, detail="Habit not found")
+    return habit 
 
-
-# Эндпоинт для удаления привычки (добавим для полноты)
 @app.delete("/habits/{habit_id}")
-def delete_habit(habit_id: int):
-    global fake_habits_db
-    for i, habit in enumerate(fake_habits_db):
-        if habit["id"] == habit_id:
-            deleted_habit = fake_habits_db.pop(i)
-            return {
-                "message": f"Habit '{deleted_habit['name']}' deleted successfully",
-                "deleted_habit": deleted_habit
-            }
-    raise HTTPException(status_code=404, detail="Habit not found")
-
-# Эндпоинт для обновления привычки
-@app.put("/habits/{habit_id}", response_model=HabitResponse)
-def update_habit(habit_id: int, habit_update: HabitUpdate):
-    # Ищем привычку по ID
-    for habit in fake_habits_db:
-        if habit["id"] == habit_id:
-            # Обновляем только переданные поля
-            update_data = habit_update.dict(exclude_unset=True)
-            
-            for field, value in update_data.items():
-                if value is not None:  # Обновляем только если значение не None
-                    habit[field] = value
-            
-            return habit
+def delete_habit(habit_id: int, db: Session = Depends(get_db)):
+    db_habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
+    if not db_habit: 
+        raise HTTPException(status_code=404, detail="Habit not found")
     
-    # Если привычка не найдена
-    raise HTTPException(status_code=404, detail="Habit not found")
+    db.delete(db_habit)
+    db.commit() 
+    return {"message": "Habit deleted successfully"}
+
+@app.put("/habits/{habit_id}", response_model=schemas.HabitResponse)
+def update_habit(habit_id: int, habit_update: schemas.HabitUpdate, db: Session = Depends(get_db)):
+    db_habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
+    if not db_habit: 
+        raise HTTPException(status_code=404, detail="Habit not found")
+    update_data = habit_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_habit,field,value)
+    db.commit() 
+    db.refresh(db_habit)
+    return db_habit

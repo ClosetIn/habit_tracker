@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import date
+from datetime import datetime
 from typing import Optional
 
 # Схема для создания новой привычки
@@ -14,7 +14,8 @@ class HabitResponse(BaseModel):
     name: str
     description: Optional[str]
     frequency: str
-    created_at: date
+    created_at: datetime
+    updated_at: Optional[datetime]
 
     # Это нужно для работы с ORM
     class Config:
