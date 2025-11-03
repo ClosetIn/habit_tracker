@@ -1,6 +1,26 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional
+
+class UserCreate(BaseModel): 
+    email: EmailStr
+    username: str 
+    password:str
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    created_at: datetime
+    class Config:
+        from_attributes=True
+class UserLogin(BaseModel):
+    email: EmailStr
+    password:str
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+class TokenData(BaseModel):
+    user_id: Optional[int]=None
 
 # Схема для создания новой привычки
 class HabitCreate(BaseModel):
@@ -16,10 +36,10 @@ class HabitResponse(BaseModel):
     frequency: str
     created_at: datetime
     updated_at: Optional[datetime]
-
+    owner_id: int
     # Это нужно для работы с ORM
     class Config:
-        orm_mode = True
+        from_attributes=True
 
 # Схема для обновления привычки (все поля опциональны)
 class HabitUpdate(BaseModel):
