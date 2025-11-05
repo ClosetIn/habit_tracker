@@ -1,6 +1,7 @@
+
 # Habit Tracker API
 
-A modern, fast, and secure RESTful API for tracking daily habits and building positive routines. Built with **FastAPI** and **PostgreSQL**, featuring JWT authentication and user-specific data isolation.
+A modern, fast, and secure RESTful API for tracking daily habits and building positive routines. Built with **FastAPI** and **PostgreSQL**, featuring JWT authentication, habit completion tracking, and comprehensive analytics.
 
 ## 🚀 Features
 
@@ -10,21 +11,25 @@ A modern, fast, and secure RESTful API for tracking daily habits and building po
 - **PostgreSQL Database** - Persistent data storage with SQLAlchemy ORM
 - **Docker Support** - Easy database setup with Docker Compose
 - **Habit Management** - Create, read, update, and delete user-specific habits
+- **Habit Completion Tracking** - Mark habits as completed with notes and ratings
+- **Advanced Analytics** - Completion rates, streaks, and performance statistics
+- **Pagination & Filtering** - Efficient data retrieval for large datasets
 - **Automatic Documentation** - Interactive API docs with Swagger UI
 - **Data Validation** - Strong typing with Pydantic models
 - **Asynchronous** - High performance with async/await
+- **Code Quality** - Static analysis with flake8, black, isort, mypy, and pylint
 - **Standards Compliant** - OpenAPI, JSON Schema, REST best practices
 - **Token Expiration** - Secure 30-minute JWT token lifespan
 
 ## 📚 API Documentation
 
 ### Interactive Docs
-- **Swagger UI**: http://localhost:8080/docs
-- **ReDoc**: http://localhost:8080/redoc
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
 ### Base URL
 ```
-http://localhost:8080
+http://localhost:8000
 ```
 
 ## 🛠️ Technology Stack
@@ -39,6 +44,8 @@ http://localhost:8080
 - **Pydantic** - Data validation and settings management
 - **Uvicorn** - ASGI web server implementation
 - **Poetry** - Python dependency management and packaging
+- **Alembic** - Database migrations
+- **Static Analysis** - flake8, black, isort, mypy, pylint
 
 ## 🗄️ Database Schema
 
@@ -60,7 +67,17 @@ http://localhost:8080
 | `frequency` | String(20) | daily, weekly, monthly (default: daily) |
 | `created_at` | DateTime | Automatic timestamp on creation |
 | `updated_at` | DateTime | Automatic timestamp on update |
-| `user_id` | Integer | Foreign key to users table |
+| `owner_id` | Integer | Foreign key to users table |
+
+### Habit Completions Table
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | Integer | Primary key, auto-increment |
+| `habit_id` | Integer | Foreign key to habits table |
+| `completed_date` | Date | Date when habit was completed |
+| `completed_at` | DateTime | Automatic timestamp of completion |
+| `notes` | Text | Optional notes about completion |
+| `rating` | Integer | Optional rating (1-5) |
 
 ## ⚡ Quick Start
 
@@ -73,7 +90,7 @@ http://localhost:8080
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ClosetIn/habit_tracker.git
+   git clone https://github.com/your-username/habit_tracker.git
    cd habit_tracker
    ```
 
@@ -88,14 +105,6 @@ http://localhost:8080
    poetry shell
    ```
 
-   *Or using traditional venv:*
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   venv\Scripts\activate     # Windows
-   pip install -r requirements.txt
-   ```
-
 4. **Set up environment variables**
    ```bash
    # Create .env file
@@ -107,13 +116,18 @@ http://localhost:8080
    EOF
    ```
 
-5. **Run the development server**
+5. **Run database migrations**
    ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+   alembic upgrade head
    ```
 
-6. **Open your browser**
-   Navigate to http://localhost:8080/docs to see the interactive API documentation.
+6. **Run the development server**
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+7. **Open your browser**
+   Navigate to http://localhost:8000/docs to see the interactive API documentation.
 
 ## 🔐 Authentication
 
@@ -135,7 +149,7 @@ POST /auth/login
 Content-Type: application/json
 
 {
-  "email": "user@example.com",
+  "login": "user@example.com",  # Can use email or username
   "password": "securepassword123"
 }
 ```
@@ -168,11 +182,29 @@ Authorization: Bearer your-jwt-token-here
 
 | Method | Endpoint | Description | Status Codes |
 |--------|----------|-------------|--------------|
-| `GET` | `/habits` | Get all user's habits | 200, 401 |
+| `GET` | `/habits` | Get all user's habits (with pagination) | 200, 401 |
 | `GET` | `/habits/{id}` | Get specific habit by ID | 200, 401, 404 |
 | `POST` | `/habits` | Create a new habit | 201, 400, 401 |
 | `PUT` | `/habits/{id}` | Update a habit | 200, 401, 404 |
 | `DELETE` | `/habits/{id}` | Delete a habit | 200, 401, 404 |
+| `GET` | `/habits/today` | Get today's habits with completion status | 200, 401 |
+| `GET` | `/habits/{id}/detailed` | Get detailed habit info with statistics | 200, 401, 404 |
+
+### Habit Completions (Require Authentication)
+
+| Method | Endpoint | Description | Status Codes |
+|--------|----------|-------------|--------------|
+| `POST` | `/completions` | Mark habit as completed | 201, 400, 401, 404 |
+| `GET` | `/habits/{id}/completions` | Get all completions for a habit | 200, 401, 404 |
+| `DELETE` | `/completions/{id}` | Delete a completion record | 200, 401, 404 |
+| `POST` | `/completions/bulk` | Mark multiple habits as completed | 201, 400, 401 |
+
+### Analytics & Statistics (Require Authentication)
+
+| Method | Endpoint | Description | Status Codes |
+|--------|----------|-------------|--------------|
+| `GET` | `/stats/overview` | Get user's overall statistics | 200, 401 |
+| `GET` | `/habits/{id}/detailed` | Get detailed analytics for a habit | 200, 401, 404 |
 
 ### System
 
@@ -183,9 +215,9 @@ Authorization: Bearer your-jwt-token-here
 
 ## 🎯 Usage Examples
 
-### Register and Login Flow
+### Complete Habit Tracking Flow
 
-1. **Register a new user:**
+1. **Register and login to get token**
 ```http
 POST /auth/register
 {
@@ -193,29 +225,18 @@ POST /auth/register
   "username": "johndoe",
   "password": "securepassword123"
 }
-```
 
-2. **Login to get access token:**
-```http
 POST /auth/login
 {
-  "email": "user@example.com",
+  "login": "user@example.com",
   "password": "securepassword123"
 }
 ```
 
-3. **Use token to access protected endpoints:**
-```http
-GET /habits
-Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
-```
-
-### Create a New Habit (Authenticated)
+2. **Create a habit**
 ```http
 POST /habits
 Authorization: Bearer your-jwt-token
-Content-Type: application/json
-
 {
   "name": "Morning Meditation",
   "description": "10 minutes of mindfulness meditation",
@@ -223,32 +244,76 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
-```json
+3. **Mark habit as completed**
+```http
+POST /completions
+Authorization: Bearer your-jwt-token
 {
-  "id": 1,
-  "name": "Morning Meditation",
-  "description": "10 minutes of mindfulness meditation",
-  "frequency": "daily",
-  "created_at": "2024-01-15T10:30:00Z",
-  "updated_at": "2024-01-15T10:30:00Z",
-  "user_id": 1
+  "habit_id": 1,
+  "notes": "Felt very focused today",
+  "rating": 5
 }
 ```
 
-### Get Current User Info
+4. **View today's habits**
 ```http
-GET /auth/me
+GET /habits/today
 Authorization: Bearer your-jwt-token
 ```
+
+5. **Get detailed analytics**
+```http
+GET /habits/1/detailed
+Authorization: Bearer your-jwt-token
+
+GET /stats/overview
+Authorization: Bearer your-jwt-token
+```
+
+### Advanced Usage
+
+**Filter habits by frequency:**
+```http
+GET /habits/?frequency=daily
+Authorization: Bearer your-jwt-token
+```
+
+**Pagination:**
+```http
+GET /habits/?skip=0&limit=10
+Authorization: Bearer your-jwt-token
+```
+
+**Bulk completions:**
+```http
+POST /completions/bulk
+Authorization: Bearer your-jwt-token
+{
+  "habit_ids": [1, 2, 3],
+  "completed_date": "2024-01-15"
+}
+```
+
+## 📊 Analytics Features
+
+### Individual Habit Statistics
+- **Completion Rate** - Percentage of days habit was completed
+- **Current Streak** - Number of consecutive days habit was completed
+- **Completion History** - All past completions with notes and ratings
+
+### User Overview Statistics
+- **Total Habits** - Number of active habits
+- **Total Completions** - All-time completed habit instances
+- **Longest Streaks** - Top 5 habits with longest current streaks
 
 ## 🔒 Security Features
 
 - **Password Hashing** - All passwords are hashed using bcrypt
 - **JWT Tokens** - Secure token-based authentication
 - **Token Expiration** - Automatic token expiry after 30 minutes
-- **User Isolation** - Users can only access their own habits
+- **User Isolation** - Users can only access their own data
 - **Input Validation** - Comprehensive data validation with Pydantic
+- **Duplicate Prevention** - Cannot mark same habit completed twice on same day
 
 ## 🐳 Docker Database Management
 
@@ -276,6 +341,50 @@ docker-compose exec postgres psql -U postgres -d habit_tracker
 docker-compose exec postgres pg_dump -U postgres habit_tracker > backup.sql
 ```
 
+## 🔧 Development
+
+### Code Quality Tools
+```bash
+# Install development dependencies
+poetry add --group dev black isort flake8 mypy pylint autopep8
+
+# Format code
+poetry run format
+
+# Run linting and type checking
+poetry run lint
+
+# Run specific tools
+poetry run black app/
+poetry run isort app/
+poetry run flake8 app/
+poetry run mypy app/
+poetry run pylint app/
+```
+
+### Database Migrations
+```bash
+# Create new migration
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback migration
+alembic downgrade -1
+```
+
+### Running Tests
+```bash
+# Start services
+docker-compose up -d
+
+# Run the application
+uvicorn app.main:app --reload
+
+# Test API endpoints via Swagger UI at http://localhost:8000/docs
+```
+
 ## 🏗️ Project Structure
 
 ```
@@ -287,55 +396,24 @@ habit_tracker/
 │   ├── models.py            # SQLAlchemy database models
 │   ├── database.py          # Database configuration and connection
 │   ├── auth.py              # Authentication utilities and JWT handling
-│   └── dependencies.py      # FastAPI dependencies for auth
+│   ├── dependencies.py      # FastAPI dependencies for auth
+│   ├── utils.py             # Utility functions for analytics
+│   └── serializers.py       # Model serialization utilities
+├── alembic/                 # Database migrations
+│   ├── versions/
+│   └── env.py
+├── scripts/                 # Development scripts
+│   ├── lint.py
+│   ├── format.py
+│   └── fix_all.py
 ├── docker-compose.yml       # Docker configuration for PostgreSQL
-├── .env                     # Environment variables (create this)
-├── .gitignore
-├── requirements.txt         # Python dependencies
-├── pyproject.toml          # Poetry configuration
-├── poetry.lock             # Poetry lock file
-└── README.md               # Project documentation
-```
-
-## 🔧 Development
-
-### Running Tests
-```bash
-# To be implemented
-pytest
-```
-
-### Code Formatting
-```bash
-# Install development dependencies
-poetry add --dev black isort flake8
-
-# Format code
-black app/
-isort app/
-```
-
-### API Testing with curl
-```bash
-# Register a new user
-curl -X POST "http://localhost:8080/auth/register" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"test@example.com","username":"testuser","password":"testpass123"}'
-
-# Login and save token
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"test@example.com","password":"testpass123"}' | \
-     python -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
-
-# Create a habit with the token
-curl -X POST "http://localhost:8080/habits/" \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer $TOKEN" \
-     -d '{"name":"Reading","description":"Read 20 pages daily","frequency":"daily"}'
-
-# Get all habits
-curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/habits/"
+├── .env                     # Environment variables
+├── .flake8                  # Flake8 configuration
+├── .pylintrc                # Pylint configuration
+├── alembic.ini              # Alembic configuration
+├── pyproject.toml           # Poetry configuration
+├── poetry.lock              # Poetry lock file
+└── README.md                # Project documentation
 ```
 
 ## 🌐 Environment Variables
@@ -349,28 +427,42 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=30
 ```
 
-## 🚧 Current Limitations & Next Steps
+## 📈 Development Progress
 
-### ✅ Completed (Day 1-3)
+### ✅ Completed Features (Days 1-4)
+
+**Day 1-2: Basic API & Database**
 - REST API with FastAPI
 - PostgreSQL database with SQLAlchemy
 - Docker containerization for database
 - Full CRUD operations for habits
 - Automatic API documentation
+
+**Day 3: Authentication & Security**
 - JWT Authentication & Authorization
 - User registration and login
 - Password hashing with bcrypt
 - User-specific data isolation
+- Protected endpoints
 
-### 📋 Planned Features
-- [ ] Habit completion tracking and streaks
-- [ ] Analytics and statistics dashboard
+**Day 4: Advanced Features & Analytics**
+- Habit completion tracking system
+- Advanced analytics and statistics
+- Completion rates and streak tracking
+- Pagination and filtering
+- Bulk operations
+- Code quality tools and static analysis
+- Enhanced error handling
+
+### 🚧 Planned Enhancements
 - [ ] Email reminders and notifications
 - [ ] Social features (friend system, sharing)
 - [ ] Mobile application (React Native)
 - [ ] Deployment to cloud platform (AWS/Azure)
 - [ ] Rate limiting and API throttling
 - [ ] Advanced filtering and search for habits
+- [ ] Habit categories and tags
+- [ ] Export data (CSV, PDF reports)
 
 ## 🤝 Contributing
 

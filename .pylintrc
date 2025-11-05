@@ -1,0 +1,29 @@
+[MASTER]
+jobs=4
+disable=all
+
+[MESSAGES CONTROL]
+enable=unused-import,
+       wrong-import-order,
+       missing-module-docstring,
+       missing-function-docstring,
+       missing-class-docstring,
+       too-few-public-methods,
+       too-many-arguments,
+       duplicate-code
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,db,id
+
+[DESIGN]
+max-args=8
+max-locals=15
+max-returns=6
+max-branches=12
+max-statements=50
+max-parents=7
+max-attributes=15
+min-public-methods=1
+
+[IMPORTS]
+deprecated-modules=regsub,TERMIOS,Bastion,rexec

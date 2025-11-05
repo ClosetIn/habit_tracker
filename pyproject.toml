@@ -3,27 +3,79 @@ name = "habit-tracker"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Roman Geller",email = "roma.geller@mail.ru"}
+    {name = "Roman Geller", email = "roma.geller@mail.ru"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi (>=0.120.2,<0.121.0)",
-    "uvicorn (>=0.38.0,<0.39.0)",
-    "sqlalchemy (>=2.0.44,<3.0.0)",
-    "psycopg2-binary (>=2.9.11,<3.0.0)",
-    "alembic (>=1.17.1,<2.0.0)",
-    "python-dotenv (>=1.2.1,<2.0.0)",
-    "python-jose[cryptography] (>=3.5.0,<4.0.0)",
-    "passlib[bcrypt] (>=1.7.4,<2.0.0)",
-    "python-multipart (>=0.0.20,<0.0.21)",
-    "email-validator (>=2.3.0,<3.0.0)",
-    "bcrypt (==4.0.1)"
+    "fastapi>=0.120.2,<0.121.0",
+    "uvicorn>=0.38.0,<0.39.0",
+    "sqlalchemy>=2.0.44,<3.0.0",
+    "psycopg2-binary>=2.9.11,<3.0.0",
+    "alembic>=1.17.1,<2.0.0",
+    "python-dotenv>=1.2.1,<2.0.0",
+    "python-jose[cryptography]>=3.5.0,<4.0.0",
+    "passlib[bcrypt]>=1.7.4,<2.0.0",
+    "python-multipart>=0.0.20,<0.0.21",
+    "email-validator>=2.3.0,<3.0.0",
+    "bcrypt==4.0.1"
 ]
 
-[tool.poetry]
-packages = [{include = "habit_tracker", from = "src"}]
+[project.optional-dependencies]
+dev = [
+    "flake8>=7.3.0,<8.0.0",
+    "pylint>=4.0.2,<5.0.0",
+    "mypy>=1.18.2,<2.0.0",
+    "black>=25.9.0,<26.0.0",
+    "isort>=7.0.0,<8.0.0"
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# КОНФИГУРАЦИЯ ИНСТРУМЕНТОВ
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | migrations
+  | .git
+  | .venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["app"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = false
+warn_unused_configs = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
+check_untyped_defs =false
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = [
+    "missing-module-docstring",
+    "missing-function-docstring", 
+    "missing-class-docstring",
+    "too-few-public-methods",
+]
+
+# Опционально: для запуска скриптов через poetry run
+[tool.poetry.scripts]
+lint = "scripts.lint:main"
+format = "scripts.format:main"
+[dependency-groups]
+dev = [
+    "autopep8 (>=2.3.2,<3.0.0)"
+]

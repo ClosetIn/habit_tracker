@@ -46,6 +46,22 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
+
 # Alembic
 alembic/__pycache__/
 alembic/versions/__pycache__/
+
+# Docker database data
+postgres/data/
+
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+
+# PyTest
+.pytest_cache/
+
+# Temporary files
+tmp/
+temp/
